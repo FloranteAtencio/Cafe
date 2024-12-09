@@ -183,26 +183,26 @@ CREATE TABLE "inventory_transaction" (
 
 -------------------- Index ------------------------
 
-CREATE INDEX idx_staff_name
-on staff (First,  Last)
+-- CREATE INDEX idx_staff_name
+-- on staff (First,  Last)
 
-CREATE UNIQUE idx_staff_email
-on staff ( email )
+-- CREATE UNIQUE idx_staff_email
+-- on staff ( email )
 
-CREATE INDEX idx_order_count
-on order_items (order_count)
+-- CREATE INDEX idx_order_count
+-- on order_items (order_count)
 
-CREATE INDEX idx_menu_category
-on menu (category)
+-- CREATE INDEX idx_menu_category
+-- on menu (category)
 
-CREATE INDEX idx_payment_status
-ON payment (status)
+-- CREATE INDEX idx_payment_status
+-- ON payment (status)
 
-CREATE INDEX idx_payment_method
-ON payment (payment_method)
+-- CREATE INDEX idx_payment_method
+-- ON payment (payment_method)
 
-CREATE INDEX idx_inventory_stock_check
-ON inventory_transaction (current_inventory_id, stock_quantity);
+-- CREATE INDEX idx_inventory_stock_check
+-- ON inventory_transaction (current_inventory_id, stock_quantity);
 
 -------------------- Package Collection ------------------------
 CREATE OR REPLACE PACKAGE arrayData AS
@@ -316,8 +316,6 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
 WHEN input_check THEN
         DBMS_OUTPUT.PUT_LINE('Error: Insufficient funds for withdrawal.');
-
-
 END;
 /
 
@@ -709,27 +707,6 @@ DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM);
 END; 
 /
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 CREATE OR REPLACE PROCEDURE single_serving_description(
 In_single_serving_id IN NUMBER,
 in_size IN VARCHAR2(50),
@@ -765,23 +742,6 @@ DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM);
 END;
 /
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 CREATE OR REPLACE PROCEDURE insert_current_inventory(
 In_current_inventory_id IN NUMBER,
 in_item_name IN VARCHAR2(50),
@@ -816,24 +776,6 @@ DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM);
 END;
 /
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 CREATE OR REPLACE PROCEDURE insert_menu(
 In_ item_id IN NUMBER,
 in_item_name IN VARCHAR2(100),
@@ -866,25 +808,6 @@ WHEN OTHERS THEN
 DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
 END;
 /
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 CREATE OR REPLACE PROCEDURE Update_discount(	
 In_ discount_id IN NUBER,
@@ -950,20 +873,6 @@ DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM);
 END;
 /
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 CREATE OR REPLACE PROCEDURE Attachment (
 In_attachment_id IN NUMBER,
     in_details_id IN NUMBER,
@@ -1003,11 +912,12 @@ IS
 BEGIN
 
 UPDATE 	staff
-SET 		First = in_First, 
+SET 
+First = in_First, 
 Last = in_Last, 
 Position = in_position, 
 Salary = in_salary  ,
- 		Email = in_email
+Email = in_email
 WHERE 	staff_id = In_staff_id
 
 DBMS_OUTPUT.PUT_LINE('Update successful.');
