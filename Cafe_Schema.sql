@@ -1191,4 +1191,12 @@ BEGIN
 
 COMMIT;
 
-EXCEPTIONS
+EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN 
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
