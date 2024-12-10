@@ -3,7 +3,9 @@ Cafe Database
 Initial set up for docker and oracle 23c free database version of oracle
 
 --- Introduction ----------
+
 Oracle 23c Structure
+
 Oracle Database 23c:
 
 Instance: The instance is the set of memory structures and background processes that manage the database files.
