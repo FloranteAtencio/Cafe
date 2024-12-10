@@ -954,7 +954,7 @@ BEGIN
         WHERE oi.order_count = :NEW.order_count
     ) THEN
         INSERT INTO inventory_transaction (stock_quantity, action, current_inventory_id)
-        SELECT oi.quantity * amount AS stock_quantity, 'Used' AS action, oid.current_inventory_id
+        SELECT oi.quantity * oid.amount AS stock_quantity, 'Used' AS action, oid.current_inventory_id
         FROM order_items oi
         JOIN menu m ON m.item_id = oi.item_id
         JOIN single_serving oid ON m.single_serving_id = oid.single_serving_id
@@ -1015,6 +1015,60 @@ BEGIN
             END IF;    
         END LOOP;
     END LOOP;
+    COMMIT;
+EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN 
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
+
+-- DECLARE
+--     v_json_data CLOB := '[
+--         { "id": 1, "name": "John Doe", "position": "Manager", "salary": 80000 },
+--         { "id": 2, "name": "Jane Smith", "position": "Analyst", "salary": 60000 }
+--     ]';
+-- BEGIN
+--     -- Insert data directly using JSON_TABLE and JSON_VALUE
+--     INSERT INTO staff_table (id, name, position, salary)
+--     SELECT 
+--         JSON_VALUE(ji.value, '$.id'), 
+--         JSON_VALUE(ji.value, '$.name'), 
+--         JSON_VALUE(ji.value, '$.position'), 
+--         JSON_VALUE(ji.value, '$.salary')
+--     FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' 
+--         COLUMNS (value CLOB PATH '$')) ji;
+
+--     COMMIT;
+-- EXCEPTION 
+--     WHEN DUP_VAL_ON_INDEX THEN 
+--         DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+--     WHEN INVALID_NUMBER THEN 
+--         DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+--     WHEN OTHERS THEN 
+--         DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+-- END;
+-- /
+
+DECLARE OR REPLACE insert_staff(
+v_JSON IN CLOB
+)
+IS
+
+BEGIN
+    -- Insert data directly using JSON_TABLE and JSON_VALUE
+    INSERT INTO staff (first, last, position, salary, hire_date, email)
+    SELECT 
+        JSON_VALUE(ji.value, '$.first'), 
+        JSON_VALUE(ji.value, '$.last'), 
+        JSON_VALUE(ji.value, '$.position'), 
+        JSON_VALUE(ji.value, '$.salary'), 
+        JSON_VALUE(ji.value, '$.hire_date'), 
+        JSON_VALUE(ji.value, '$.email')
+    FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
 
     COMMIT;
 EXCEPTION 
@@ -1026,3 +1080,115 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
 END;
 /
+
+DECLARE OR REPLACE insert_discount(
+v_JSON IN CLOB
+)
+IS
+
+BEGIN
+    -- Insert data directly using JSON_TABLE and JSON_VALUE
+    INSERT INTO discount (discount_name, discount_rate, date_effective)
+    SELECT 
+        JSON_VALUE(ji.value, '$.discount_name'), 
+        JSON_VALUE(ji.value, '$.discount_rate'), 
+        JSON_VALUE(ji.value, '$.date_effective')
+    FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+
+    COMMIT;
+EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN 
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
+
+DECLARE OR REPLACE insert_payments(
+v_JSON IN CLOB
+)
+IS
+
+BEGIN
+    -- Insert data directly using JSON_TABLE and JSON_VALUE
+    INSERT INTO payments (order_count, payment_method, pay_amount, recieved_amount, staff_id, discount_id, status)
+    SELECT 
+        JSON_VALUE(ji.value, '$.order_count'), 
+        JSON_VALUE(ji.value, '$.payment_method'), 
+        JSON_VALUE(ji.value, '$.recieved_amount'),
+        JSON_VALUE(ji.value, '$.staff_id'), 
+        JSON_VALUE(ji.value, '$.discount_id'), 
+        JSON_VALUE(ji.value, '$.status')
+        
+    FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+
+    COMMIT;
+EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN 
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
+
+DECLARE OR REPLACE insert_menu(
+v_JSON IN CLOB
+)
+IS
+
+BEGIN
+    -- Insert data directly using JSON_TABLE and JSON_VALUE
+    INSERT INTO menu (item_name, price, category, availability_status)
+    SELECT 
+        JSON_VALUE(ji.value, '$.item_name'), 
+        JSON_VALUE(ji.value, '$.price'), 
+        JSON_VALUE(ji.value, '$.category'),
+        JSON_VALUE(ji.value, '$.availability_status') 
+        
+    FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+
+    COMMIT;
+EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN 
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
+
+DECLARE OR REPLACE insert_inventory(
+    v_JSON IN CLOB
+)
+IS
+    v_inventory_a JSON_ARRAY_T := JSON_ARRAY_T(v_JSON)
+    v_inventory_o JSON_OBJECT_T;
+    v_inventory_details_a JSON_ARRAY_T;
+    v_inventory_details_o JSON_OBJECT_T;
+    v_current_inventory_id NUMBER;
+
+BEGIN
+
+    FOR i IN 1 .. v_inventory_a.get_size LOOP
+        v_inventory_o := v_inventory_a.get_object(i)
+        INSERT INTO current_inventory(item_name, description, unit, category)
+        VALUES (v_inventory_o.get_number('item_name'), v_inventory_o.get_number('description'),v_inventory_o.get_number('unit'), v_inventory_o.get_number('category'))
+        RETURNING current_inventory_id INTO v_current_inventory_id;
+        v_inventory_details_a = v_inventory_o.get_array(i)
+
+        FOR j IN 1 .. v_inventory_details_a.get_size LOOP
+            v_inventory_details_o := v_inventory_details_a.get_object(j)
+            INSERT INTO current_inventory_details (stock_amount, current_inventory_id)
+            VALUES (v_inventory_o.get_number('stock_amount'), v_current_inventory_id);
+        END LOOP
+
+    END LOOP
+
+COMMIT;
+
+EXCEPTIONS
