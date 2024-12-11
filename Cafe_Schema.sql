@@ -1068,7 +1068,7 @@ BEGIN
         JSON_VALUE(ji.value, '$.salary'), 
         JSON_VALUE(ji.value, '$.hire_date'), 
         JSON_VALUE(ji.value, '$.email')
-    FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+    FROM JSON_TABLE(JSON_QUERY(v_JSON, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
 
     COMMIT;
 EXCEPTION 
@@ -1093,7 +1093,7 @@ BEGIN
         JSON_VALUE(ji.value, '$.discount_name'), 
         JSON_VALUE(ji.value, '$.discount_rate'), 
         JSON_VALUE(ji.value, '$.date_effective')
-    FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+    FROM JSON_TABLE(JSON_QUERY(v_JSON, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
 
     COMMIT;
 EXCEPTION 
@@ -1149,7 +1149,7 @@ BEGIN
         JSON_VALUE(ji.value, '$.category'),
         JSON_VALUE(ji.value, '$.availability_status') 
         
-    FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+    FROM JSON_TABLE(JSON_QUERY(v_JSON, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
 
     COMMIT;
 EXCEPTION 
@@ -1200,3 +1200,79 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
 END;
 /
+
+DECLARE OR REPLACE insert_per_single_serving(
+    v_json_data IN CLOB      
+    
+    )
+    
+    IS
+
+    BEGIN
+
+        INSERT INTO per_single_serving(menu_id, amount, current_inventory_id)
+        SELECT
+            JSON_VALUE(ji.value, '$.menud_id'),
+            JSON_VALUE(ji.value, '$.amount'),
+            JSON_VALUE(ji.value, '$.current_inventory_id')
+        FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+
+    COMMIT;
+
+    EXCEPTION
+        WHEN DUP_VAL_ON_INDEX THEN 
+            DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+        WHEN INVALID_NUMBER THEN 
+            DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+        WHEN OTHERS THEN 
+            DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
+
+DECLARE OR REPLACE insert_details (
+    v_json_array IN CLOB
+)
+    IS
+
+    BEGIN
+        INSERT INTO details(payment_id, description, amount_paid, DebitCredit)
+        SELECT
+            JSON_VALUE(ji.value, '$.payment_id'),
+            JSON_VALUE(ji.value, '$.decription'),
+            JSON_VALUE(ji.value, '$.amount_paid'),
+            JSON_VALUE(ji.value, '$.DebitCredit')            
+        FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value  CLOB PATH '$')) ji;
+    COMMIT;
+
+    EXCEPTION
+        WHEN DUP_VAL_ON_INDEX THEN 
+            DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+        WHEN INVALID_NUMBER THEN 
+            DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+        WHEN OTHERS THEN 
+            DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+    END;
+    /
+
+    DECLARE OR REPLACE insert_attachment(
+        v_json_data IN CLOB
+    )
+        IS 
+
+    BEGIN
+        INSERT INTO attachment(details_id, file_path)
+        SELECT
+            JSON_VALUE(ji.value, '$.details_id'),
+            JSON_VALUE(ji.value, '$.file_path')
+        FROM JSON_TABLE(JSON_QUERY(V_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+    COMMIT;
+
+    EXCEPTION
+        WHEN DUP_VAL_ON_INDEX THEN 
+            DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+        WHEN INVALID_NUMBER THEN 
+            DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+        WHEN OTHERS THEN 
+            DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+    END;
+    /
