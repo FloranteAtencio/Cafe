@@ -11,3 +11,4 @@ EOF
 
 # Remove backups older than 30 days
 find "/Home/Oracle" -name "full_backup_*" -type f -mtime +30 -exec rm {} \;
+# backup shell file located in /Home/Oracle/Script/

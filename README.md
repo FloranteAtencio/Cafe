@@ -45,13 +45,14 @@ container-registry.oracle.com/database/free:latest
 -- Execute sql
 sudo docker exec -it LegendOfZelda bash
 
--- back up automation 
-
-shell
-crobtab -e
+-- back up automation in shell 
 
 chmod +x /Home/Oracle/Script/full_backup.sh
-0 8 1 * * /Home/Oracle/Script/full_backup.sh
 
 chmod +x /Home/Oracle/Script/incremental_backup.sh
+
+crobtab -e
+
+0 8 1 * * /Home/Oracle/Script/full_backup.sh
+
 0 8 1 * 7 /Home/Oracle/Script/incremental_backup.sh
