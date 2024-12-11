@@ -795,7 +795,7 @@ in_ single_serving_id IN NUMBER
 IS 
 BEGIN
 
-UPDATE` 	menu
+UPDATE 	menu
 SET		item_name = in_item_name, 
 Description = in_description, 
 Price = in_price,
