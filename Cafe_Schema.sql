@@ -67,7 +67,7 @@ CREATE TABLE "Details" (
   "payment_id" NUMBER NOT NULL,
   "description" VARCHAR2(50),
   "amount_paid" NUMBER(10,2),
-  "DebitCredit" VARCHAR2(10) -- Made VARCHAR to VARCHAR2 for consistency
+  "DebitCredit" VARCHAR2(10) 
 );
 --3
 CREATE TABLE "Attachment" (
@@ -83,7 +83,7 @@ CREATE TABLE "Attachment" (
 CREATE TABLE "order_items" (
   "order_count" NUMBER NOT NULL,
   "menu_id" NUMBER NOT NULL,
-  "quantity" NUMBER -- Fixed typo: "quantiity" to "quantity"
+  "quantity" NUMBER 
 );
 --5
 CREATE TABLE "order_count" (
@@ -99,11 +99,11 @@ CREATE TABLE "menu" (
   "item_name" VARCHAR2(100),
   "price" NUMBER(5,2),
   "category" VARCHAR2(50),
-  "availability_status" NUMBER(1) DEFAULT 1 NOT NULL CHECK ("availability_status" IN (1, 0)) -- Removed space
+  "availability_status" NUMBER(1) DEFAULT 1 NOT NULL CHECK ("availability_status" IN (1, 0)) 
 );
 --7
 CREATE TABLE "per_single_serving" (
-  "menu_id" NUMBER NOT NULL, -- Changed type for consistency with menu_id type
+  "menu_id" NUMBER NOT NULL, 
   "amount" NUMBER(5,2) NOT NULL,
   "current_inventory_id" NUMBER NOT NULL,
   CONSTRAINT "FK_per_single_serving.menu_id"
@@ -966,7 +966,6 @@ COMMIT;
 
 WHEN NO_DATA_FOUND THEN
       DBMS_OUTPUT.PUT_LINE('No data found for today.');
-
 END;
 /
 
@@ -1166,7 +1165,7 @@ DECLARE OR REPLACE insert_inventory(
     v_JSON IN CLOB
 )
 IS
-    v_inventory_a JSON_ARRAY_T := JSON_ARRAY_T(v_JSON)
+    v_inventory_a JSON_ARRAY_T := JSON_ARRAY_T(v_JSON);
     v_inventory_o JSON_OBJECT_T;
     v_inventory_details_a JSON_ARRAY_T;
     v_inventory_details_o JSON_OBJECT_T;
@@ -1186,7 +1185,6 @@ BEGIN
             INSERT INTO current_inventory_details (stock_amount, current_inventory_id)
             VALUES (v_inventory_o.get_number('stock_amount'), v_current_inventory_id);
         END LOOP
-
     END LOOP
 
 COMMIT;
@@ -1276,3 +1274,233 @@ DECLARE OR REPLACE insert_details (
             DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
     END;
     /
+
+    --------------------- API Update--------------------
+
+DECLARE OR REPLACE update_details(
+    v_json_data IN CLOB
+)
+IS 
+    v_details_a JSON_ARRAY_T := JSON_ARRAY_T(v_json_data);
+    v_details_o JSON_OBJECT_T;
+
+BEGIN
+
+    FOR i IN 1 .. v_details_a.get_size LOOP
+        v_details_o := v_details_a.get_object(i)
+        UPDATE  details
+        SET     payment_id              = v_details_o.get_number('payment_id'),
+                description             = v_details_o.get_number('description'),
+                amount_paid             = v_details_o.get_number('amount_paid'),
+                DebitCredit             = v_details_o.get_number('DebitCredit') 
+        WHERE   details.details_id      = v_details_o.get_number('details_id');
+    END LOOP
+    
+COMMIT;
+
+EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN 
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
+
+DECLARE OR REPLACE update_attachment(
+    v_json_data IN CLOB
+)
+IS 
+    v_attachment_a JSON_ARRAY_T := JSON_ARRAY_T(v_json_data)
+    v_attachment_o JSON_OBJECT_T
+
+BEGIN
+
+    FOR i IN 1 .. v_attachment_a.get_size LOOP
+        v_attachment_o := v_attachment_a.get_object(i)
+        UPDATE  Attachment
+        SET     details_id      = v_attachment_o.get_number('details_id'),
+                file_path       = v_attachment_o.get_number('file_path'),
+                upload_at       = v_attachment_o.get_number('upload_at')
+        WHERE   attachment_id   = v_attachment_o.get_number('details_id');
+    END LOOP
+    
+COMMIT;
+
+EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN 
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
+
+DECLARE OR REPLACE update_per_single_serving(
+    v_json_data IN CLOB
+)
+IS 
+    v_serving_a JSON_ARRAY_T := JSON_ARRAY_T(v_json_data);
+    v_serving_o JSON_OBJECT_T;
+
+BEGIN
+
+    FOR i IN 1 .. v_serving_a.get_size LOOP
+        v_serving_o := v_serving_a.get_object(i)
+        UPDATE Attachment
+        SET     menu_id                 = v_serving_o.get_number('menu_id'),
+                amount                  = v_serving_o.get_number('amount'),
+                current_inventory_id    = v_serving_o.get_number('current_inventory_id')
+        WHERE   menu_id                 = v_attachment_o.get_number('menu_id') AND current_inventory_id = v_serving_o.get_number('current_inventory_id');
+    END LOOP
+    
+COMMIT;
+
+    EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN  
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
+
+DECLARE OR REPLACE update_current_inventory(
+    v_json_data IN CLOB
+)
+IS 
+    v_inventory_a JSON_ARRAY_T := JSON_ARRAY_T(v_json_data);
+    v_inventory_o JSON_OBJECT_T;
+    v_indetails_a JSON_ARRAY_T;
+    v_indetails_o JSON_OBJECT_T;
+BEGIN
+
+    FOR i IN 1 .. v_inventory_a.get_size LOOP
+        v_inventory_o := v_inventory_a.get_object(i);
+        UPDATE  current_inventory
+        SET     item_name               = v_inventory_o.get_number('item_name'),
+                description             = v_inventory_o.get_number('description'),
+                unit                    = v_serving_o.get_number('unit'),
+                category                = v_inventory_o.get_number('category'),
+                create_at               = v_inventory_o.get_number('create_at')
+        WHERE   current_inventory_id    = v_inventory_o.get_number('current_inventory_id');
+        v_indetails_a = v_inventory_o.get_array(i);
+
+        FOR j IN 1.. v_indetails_a.get_size LOOP
+        v_indetails_o := v_indetails_a.get_object(j);
+            UPDATE  current_inventory_details
+            SET     stock_amount   = v_indetails_o.get_number('stock_amount'),
+            WHERE  current_inventory_id = v_inventory_o.get_number('current_inventory_id');
+
+        END LOOP
+
+    END LOOP
+    
+COMMIT;
+
+    EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN  
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
+
+CREATE OR REPLACE update_menu_id(
+    v_json_data IN CLOB
+)
+
+IS
+    v_menu_a JSON_ARRAY_T := JSON_ARRAY_T(v_json_data);
+    v_menu_o JSON_OBJECT_T;
+
+BEGIN
+    FOR i IN 1 .. v_menu_a.get_size LOOP
+        v_menu_o := v_menu_a.get_object(i);
+        UPDATE  menu
+        SET     item_name           = v_menu_o.get_number('item_name'),
+                price               = v_menu_o.get_number('price'),
+                category            = v_menu_o.get_number('category'),
+                availabity_status   = v_menu_o.get_number('availability_status')        
+        WHERE   menu_id             = v_menu_o.get_number('menu_id')
+    END LOOP
+
+COMMIT;
+
+    EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN  
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
+
+CREATE OR REPLACE update_discount(
+    v_json_data IN CLOB
+)
+
+IS
+    v_discount_a JSON_ARRAY_T := JSON_ARRAY_T(v_json_data);
+    v_discount_o JSON_OBJECT_T;
+
+BEGIN
+    FOR i IN 1 .. v_discount_a.get_size LOOP
+        v_discount_o := v_discount_a.get_object(i);
+        UPDATE  discount
+        SET     discount_name       = v_discount_o.get_number('discount_name'),
+                discount_rate       = v_discount_o.get_number('discount_rate'),
+                date_effective      = v_discount_o.get_number('date_effective')
+        WHERE   discount_id         = v_discount_o.get_number('discount_id')
+    END LOOP
+
+COMMIT;
+
+    EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN  
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
+
+CREATE OR REPLACE update_staff(
+    v_json_data IN CLOB
+)
+
+IS
+    v_staff_a JSON_ARRAY_T := JSON_ARRAY_T(v_json_data);
+    v_staff_o JSON_OBJECT_T;
+
+BEGIN
+    FOR i IN 1 .. v_staff_a.get_size LOOP
+        v_staff_o := v_staff_a.get_object(i);
+        UPDATE  staff
+        SET     first       = v_staff_o.get_number('first'),
+                last        = v_staff_o.get_number('last'),
+                position    = v_staff_o.get_number('position')
+                salary      = v_staff_o.get_number('salary'),
+                hire_date   = v_staff_o.get_number('hire_date'),
+                email       = v_staff_o.get_number('email')
+        WHERE   staff_id    = v_staff_o.get_number('staff_id')
+    END LOOP
+
+COMMIT;
+
+    EXCEPTION 
+    WHEN DUP_VAL_ON_INDEX THEN  
+        DBMS_OUTPUT.PUT_LINE('Duplicate value encountered.'); 
+    WHEN INVALID_NUMBER THEN 
+        DBMS_OUTPUT.PUT_LINE('Invalid data encountered.'); 
+    WHEN OTHERS THEN 
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM); 
+END;
+/
