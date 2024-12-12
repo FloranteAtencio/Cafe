@@ -1,56 +1,3 @@
--- Login as admin 
--- For safer way sqlplus sys@locahost:1521 as sysdba
-sqlplus sys/p1a2s0s3word@locahost:1521 as sysdba
-
--- PLUGGABLE DATABASE
-CREATE PLUGGABLE DATABASE Dev_Cafe admin user Links IDENTIFIED BY zelda \
-create_file_dest='/home/oracle';
-
--- Set permision
-ALTER PLUGGABLE DATABASE Dev_Cafe OPEN;
-EXIT
-
--- Log in to the database
--- For safer way sqlplus sys@localhost:1521/Dev_cafe as sysdba
-sqlplus sys/p1a2s0s3word@localhost:1521/Dev_Cafe as sysdba
-
--- Grant access to Link
-GRANT DBA to link CONTAINER = ALL
-
--- Developer Acess
-
-CREATE ROLE dev_ROLE;
-
-GRANT CONNECT, CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE PROCEDURE,
-      CREATE SEQUENCE, CREATE TRIGGER, CREATE SYNONYM TO dev_ROLE;
-
-CREATE USER Dev_Hyrule IDENTIFIED BY dev_Password
-
-GRANT dev_ROLE TO Dev;
-
-GRANT UNLIMITED TABLESPACE TO Dev;
-
--- Production Access after the schema is created
-
-CREATE ROLE prod_ROLE;
-
-BEGIN
-  FOR t IN (SELECT table_name FROM all_tables WHERE owner = 'Dev_cafe') LOOP
-    EXECUTE IMMEDIATE 'GRANT SELECT, INSERT, UPDATE ON ' || 'Dev_cafe' || t.table_name || ' TO prod_ROLE';
-  END LOOP;
-END;
-/
-
-CREATE USER Prod IDENTIFIED BY ProdPassword
-
-GRANT prod_ROLE TO Prod
-
-EXIT
-
---  DBA As link
--- safe way sqlplus Link@localhost:1521/Dev_Cafe
-sqlplus Link/zelda@localhost:1521/Dev_Cafe
-
 ---- Schema --------------------------
 
 CREATE TABLE "order_count" (
@@ -226,13 +173,15 @@ CREATE TABLE "Attachment" (
 
 -------------------- Package Collection ------------------------
 CREATE OR REPLACE PACKAGE arrayData AS
-    TYPE ArrayNUMBER IS TABLE OF NUMBER;        -- Array of numbers
-    TYPE ArrayVARCHAR IS TABLE OF VARCHAR2(50);  -- Array of strings with max length 10
-    TYPE ArrayBOOLEAN IS TABLE OF NUMBER(1)       -- Array of characters (1/0) as BOOLEAN
-    TYPE ArrayDATE IS TABLE OF DATE;             -- Array of DATE values
-    TYPE ArrayTIMESTAMP IS TABLE OF TIMESTAMP;   -- Array of TIMESTAMP values
-    Type ArrayDECIMAL IS TABLE OF NUMBER(10,2)
+    -- Define collection types for arrays
+    TYPE ArrayNUMBER IS TABLE OF NUMBER;          -- Array of numbers
+    TYPE ArrayVARCHAR IS TABLE OF VARCHAR2;   -- Array of strings with max length 50
+    TYPE ArrayBOOLEAN IS TABLE OF NUMBER;         -- Array of 0/1 as boolean (numeric)
+    TYPE ArrayDATE IS TABLE OF DATE;              -- Array of DATE values
+    TYPE ArrayTIMESTAMP IS TABLE OF TIMESTAMP;    -- Array of TIMESTAMP values
+    TYPE ArrayDECIMAL IS TABLE OF NUMBER(10,2);   -- Array of DECIMAL values
 END arrayData;
+/
 
 -------------------- Create ------------------------
 CREATE OR REPLACE PROCEDURE Order_Count_Increment (
@@ -240,10 +189,10 @@ CREATE OR REPLACE PROCEDURE Order_Count_Increment (
 ) IS
 BEGIN
     SELECT order_count INTO order_out
-    FROM order_count 
+    FROM order_count; 
   
     UPDATE order_count
-    SET order_count = order_count + 1
+    SET order_count = order_count + 1;
 
       COMMIT;
 
@@ -255,32 +204,33 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE insert_current_inventory_bulk(
-in_item_name IN VARCHAR2(50),
-in_brand_nameIN NUMBER(5,2),
-in_stock_quantity IN VARCHAR2(10),
-in_unit IN NUMBER (1),
-in_category IN NUMBER
+    in_item_name      IN arrayData.ArrayNUMBER,
+    in_brand_name     IN arrayData.ArrayNUMBER,
+    in_stock_quantity IN arrayData.ArrayNUMBER,
+    in_unit           IN arrayData.ArrayNUMBER,
+    in_category       IN NUMBER
 )
-IS 
-DECLARE
-input_check EXCEPTION;
+IS
+    input_check EXCEPTION;
 
 BEGIN
+    -- Loop through the input arrays
+    FOR i IN 1 .. in_item_name.COUNT LOOP
+        -- Check if the data is valid
+        IF in_item_name(i) IS NULL OR in_stock_quantity(i) < 0 OR in_unit(i) < 1 THEN
+            RAISE input_check;  -- Raise an exception if data is invalid
+        ELSE
+            -- Insert the data into the inventory table
+            INSERT INTO current_inventory (item_name, brand_name, stock_quantity, unit, category)
+            VALUES (in_item_name(i), in_brand_name(i), in_stock_quantity(i), in_unit(i), in_category);
 
-FOR i IN 1  . . in_item_name.COUNT LOOP
-IF LENGTH(in_item_name(i)) >= 0  OR in_stock_quantity(i) > = 0 THEN
-    RAISE input_check;
-ELSE 
+            -- Output message after insert
+            DBMS_OUTPUT.PUT_LINE('Insert successful for item: ' || in_item_name(i));
+        END IF;
+    END LOOP;
 
-INSERT INTO current_inventory (item_name, brand_name, stock_quantity, unit,category) 
-VALUES (in_item_name(i), in_brand_name(i), in_stock_quantity(i), in_unit(i), in_category(i))
-
-DBMS_OUTPUT.PUT_LINE('Insert successful.');
-
-COMMIT;
-
-END IF;
-END LOOP;
+    -- Commit after all inserts are done
+    COMMIT;
 
 EXCEPTION
     WHEN DUP_VAL_ON_INDEX THEN
@@ -289,43 +239,38 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('Error: Value too large or invalid datatype.');
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
-   WHEN input_check THEN
-        DBMS_OUTPUT.PUT_LINE('Error: Insufficient funds for withdrawal.');
-
-
+    WHEN input_check THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Invalid input data (e.g., NULL values or negative quantities).');
 END;
 /
 
 
+
 CREATE OR REPLACE PROCEDURE insert_menu_bulk(
-in_item_name IN ArrayVarchar,
-in_description IN ArrayVarchar,
-in_price IN ArrayDecimal,
-in_availability_status IN ArrayBoolean,
-in_category IN ArrayVarchar,
-in_order_inventory_description_id IN ArrayNUMBER
+    in_item_name                        IN ArrayVarchar,
+    in_description                      IN ArrayVarchar,
+    in_price                            IN ArrayDecimal,
+    in_availability_status              IN ArrayBoolean, 
+    in_category                         IN ArrayVarchar,
+    in_order_inventory_description_id   IN ArrayNUMBER
 
 )
 IS 
 
-DECLARE
 input_check EXCEPTION;
 
 BEGIN
 
-FOR i IN 1 . . in_item_name.COUNT LOOP
-IF  LENGTH(in_item_name(i)) >= 0 OR in_stock_quantity(0) > 0 THEN
-    RAISE input_check;
-ELSE
-INSERT INTO menu (item_name, description, price,category, availability_status,order_inventory_description_id ) 
-VALUES (in_item_name(i), in_description(i), in_price, in_category(i), in_availability_status(i), in_order_inventory_description_id(i))
-
-DBMS_OUTPUT.PUT_LINE('Insert successful.');
-
+    FOR i IN 1 . . in_item_name.COUNT LOOP
+        IF  in_item_name(i) IS NULL OR in_stock_quantity(0) < 0 OR in_unit(i) < 1 THEN
+            RAISE input_check;
+        ELSE
+                INSERT INTO menu (item_name, description, price,category, availability_status,order_inventory_description_id ) 
+                VALUES (in_item_name(i), in_description(i), in_price, in_category(i), in_availability_status(i), in_order_inventory_description_id(i));
+                DBMS_OUTPUT.PUT_LINE('Insert successful.');
+        END IF;
+    END LOOP;
 COMMIT;
-
-END IF;
-END LOOP;
 
 EXCEPTION
     WHEN DUP_VAL_ON_INDEX THEN
@@ -335,39 +280,33 @@ EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
 WHEN input_check THEN
-        DBMS_OUTPUT.PUT_LINE('Error: Insufficient funds for withdrawal.');
+        DBMS_OUTPUT.PUT_LINE('Error: Invalid input data(e.g., Null values or negative Input)');
 END;
 /
 
 
 CREATE OR REPLACE PROCEDURE order_items_bulks(
-in_order_count IN ArrayData.ArrayNumber,
-in_item_id IN ArrayData.ArrayNumber,
-in_quantity IN ArrayData.ArrayNumber,
-in_subtotal IN ArrayData.ArrayDecimal
+    in_order_count  IN ArrayData.ArrayNumber,
+    in_item_id      IN ArrayData.ArrayNumber,
+    in_quantity     IN ArrayData.ArrayNumber,
+    in_subtotal     IN ArrayData.ArrayDecimal
 )
 IS
-
-DECLARE
 
 input_validation_check EXCEPTION;
 
 BEGIN
 
-FOR I IN 1 .. in_order_count.COUNT LOOP
-IF in_quantity(i) > 0 OR in_subtotal(1) > 0 THEN
-    RAISE input_validation_check;
-ELSE
-INSERT INTO order_items (order_count, item_id, quantity, subtotal) 
-VALUES (in_order_count(i), in_item_id(i), in_quantity(i), in_subtota(i)l)
+    FOR I IN 1 .. in_order_count.COUNT LOOP
+        IF in_quantity(i) < 0 OR in_subtotal(1) < 0 THEN
+            RAISE input_validation_check;
+        ELSE
+            INSERT INTO order_items (order_count, item_id, quantity, subtotal) 
+            VALUES (in_order_count(i), in_item_id(i), in_quantity(i), in_subtota(i));
 
-DBMS_OUTPUT.PUT_LINE('Insert successful.');
-
-COMMIT;
-
-END IF;
-
-END LOOP;
+            DBMS_OUTPUT.PUT_LINE('Insert successful.');
+        END IF;
+    END LOOP;
 
 EXCEPTION
     WHEN DUP_VAL_ON_INDEX THEN
@@ -377,7 +316,7 @@ EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
     WHEN input_validation_check THEN
-        DBMS_OUTPUT.PUT_LINE('Error: Insufficient funds for withdrawal.');
+        DBMS_OUTPUT.PUT_LINE('Error: Invalid Input data (e.g Negative quantities).');
 
 END;
 /
@@ -385,10 +324,10 @@ END;
 
 
 CREATE OR REPLACE PROCEDURE order_items_selection(
-in_order_count IN NUMBER,
-in_item_id IN NUMBER,
-in_quantity IN NUMBER,
-in_subtotal IN NUMBER (6,2)
+    in_order_count  IN NUMBER,
+    in_item_id      IN NUMBER,
+    in_quantity     IN NUMBER,
+    in_subtotal     IN NUMBER
 )
 IS 
 
@@ -398,11 +337,11 @@ quantity_subtotal_check EXCEPTION;
 
 BEGIN
 
-IF in_quantity > 0 OR in_subtotal > 0 THEN
+IF in_quantity < 0 OR in_subtotal < 0 THEN
     RAISE quantity_subtotal_check;
 ELSE
 INSERT INTO order_items (order_count, item_id, quantity, subtotal) 
-VALUES (in_order_count, in_item_id, in_quantity, in_subtotal)
+VALUES (in_order_count, in_item_id, in_quantity, in_subtotal);
 
 DBMS_OUTPUT.PUT_LINE('Insert successful.');
 
@@ -423,10 +362,10 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE single_serving(
-in_size IN VARCHAR2(50),
-in_amount IN NUMBER(5,2),
-in_unit_size IN VARCHAR2(10),
-in_availability IN NUMBER (1),
+in_size IN VARCHAR2,
+in_amount IN NUMBER,
+in_unit_size IN VARCHAR2,
+in_availability IN NUMBER,
 in_inventory_id IN NUMBER 
 )
 IS 
@@ -435,12 +374,12 @@ amount_unitsize_check EXCEPTION;
 
 BEGIN
 
-IF in_amount > 0 OR in_unit_size > = 0 THEN
+IF in_amount < 0 OR in_unit_size < 0 THEN
     RAISE amount_unitsize_check;
 
 ELSE 
 INSERT INTO  single_serving (size, amount, Unit_use, Availabitity,Inventory_id) 
-VALUES (in_size, in_amount, in_Unit_use, in_Availabitity, in_Inventory_id)
+VALUES (in_size, in_amount, in_Unit_use, in_Availabitity, in_Inventory_id);
 
 DBMS_OUTPUT.PUT_LINE('Insert successful.');
 
@@ -465,24 +404,24 @@ END;
 
 
 CREATE OR REPLACE PROCEDURE insert_current_inventory(
-in_item_name IN VARCHAR2(50),
-in_brand_nameIN NUMBER(5,2),
-in_stock_quantity IN VARCHAR2(10),
-in_unit IN NUMBER (1),
-in_category IN NUMBER
+    in_item_name        IN VARCHAR2,
+    in_brand_name       IN NUMBER,
+    in_stock_quantity   IN VARCHAR2,
+    in_unit             IN NUMBER,
+    in_category         IN NUMBER
 )
 IS 
-DECLARE
+
 input_check EXCEPTION;
 
 BEGIN
 
-IF LENGTH(in_item_name) >= 0  OR in_stock_quantity > = 0 THEN
+IF LENGTH(in_item_name) < 0  OR in_stock_quantity < 0 THEN
     RAISE input_check;
 ELSE 
 
 INSERT INTO current_inventory (item_name, brand_name, stock_quantity, unit,category) 
-VALUES (in_item_name, in_brand_name, in_stock_quantity, in_unit, in_category)
+VALUES (in_item_name, in_brand_name, in_stock_quantity, in_unit, in_category);
 
 DBMS_OUTPUT.PUT_LINE('Insert successful.');
 
@@ -506,12 +445,12 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE insert_menu(
-in_item_name IN VARCHAR2(100),
-in_description IN VARCHAR2(50),
-in_price IN NUMBER(5,2),
-in_availability_status IN NUMBER(1),
-in_category IN VARCHAR2(50),
-in_order_inventory_description_id IN NUMBER
+    in_item_name                        IN VARCHAR2,
+    in_description                      IN VARCHAR2,
+    in_price                            IN NUMBER,
+    in_availability_status              IN NUMBER,
+    in_category                         IN VARCHAR2,
+    in_order_inventory_description_id   IN NUMBER
 
 )
 IS 
@@ -521,11 +460,11 @@ input_check EXCEPTION;
 
 BEGIN
 
-IF  LENGTH(in_item_name) >= 0 OR in_stock_quantity > 0 THEN
+IF  LENGTH(in_item_name) < 0 OR in_stock_quantity < 0 THEN
     RAISE input_check;
 ELSE
 INSERT INTO menu (item_name, description, price,category, availability_status,order_inventory_description_id ) 
-VALUES (in_item_name, in_description, in_price, in_category, in_availability_status, in_order_inventory_description_id)
+VALUES (in_item_name, in_description, in_price, in_category, in_availability_status, in_order_inventory_description_id);
 
 DBMS_OUTPUT.PUT_LINE('Insert successful.');
 
@@ -549,22 +488,22 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE insert_current_inventory(
-in_Discount_name IN VARCHAR2(50),
-in_Discount_rate IN NUMBER(5,2),
-in_Date_effective IN VARCHAR2(10)
+    in_Discount_name    IN VARCHAR2,
+    in_Discount_rate    IN NUMBER,
+    in_Date_effective   IN VARCHAR2
 )
 IS 
 
 DECLARE
-input_check EXCEPTION
+input_check EXCEPTION;
 BEGIN
-IF  LENGTH(in_Discount_name) >= 0 OR in_Discount_rate > 0 THEN
+IF  LENGTH(in_Discount_name) < 0 OR in_Discount_rate < 0 THEN
     RAISE input_check;
 
 ELSE 
 
 INSERT INTO current_inventory (Discount_name, Discount_rate, Date_effective) 
-VALUES (in_Discount_name, in_Discount_rate, in_Date_effective)
+VALUES (in_Discount_name, in_Discount_rate, in_Date_effective);
 
 DBMS_OUTPUT.PUT_LINE('Insert successful.');
 COMMIT;
@@ -587,25 +526,25 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE insert_payment(
-in_order_count IN NUMBER ,   
-in_payment_method IN VARCHAR(10), 
-in_Amount_paid IN NUMBER(10,2),  
-in_discount IN NUMBER,
-in_staff IN NUMBER,  
-in_status IN NUMBER
+    in_order_count      IN NUMBER ,   
+    in_payment_method   IN VARCHAR, 
+    in_Amount_paid      IN NUMBER,  
+    in_discount         IN NUMBER,
+    in_staff            IN NUMBER,  
+    in_status           IN NUMBER
 )
 IS
 
-DECLARE
-input_check EXCEPTION
+input_check EXCEPTION;
+
 BEGIN
-IF  in_discount >= 0 OR in_Amount_paid >= 0 THEN
+IF  in_discount < 0 OR in_Amount_paid < 0 THEN
     RAISE input_check;
 
 ELSE
 
 INSERT INTO payments (order_count,   payment_method, Amount_paid,  discount, status, staff_id)
-VALUES (in_order_count,  in_payment_date, in_payment_method, in_Amount_paid,  in_discount, in_status,in_staff)
+VALUES (in_order_count,  in_payment_date, in_payment_method, in_Amount_paid,  in_discount, in_status,in_staff);
 
 DBMS_OUTPUT.PUT_LINE('Insert successful.');
 
@@ -655,11 +594,11 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE insert_staff(
-in_First IN VARCHAR(50),   
-in_Last IN VARCHAR(50), 
-in_position IN VARCHAR(50),  
-in_salary  IN NUMBER (5,2) 
-in_email IN VARCHAR(50)
+    in_First    IN VARCHAR,   
+    in_Last     IN VARCHAR, 
+    in_position IN VARCHAR,  
+    in_salary   IN NUMBER, 
+    in_email    IN VARCHAR
 )
 IS
 DECLARE  
@@ -668,10 +607,10 @@ input_check EXCEPTION;
 
 BEGIN
 
-IF INSTER(in_email, '@') > THEN 
+IF INSTER(in_email, '@') THEN 
 
 INSERT INTO staff (First, Last, position, salary, email)
-VALUES (in_First, in_Last, in_position, in_salary, in_email)
+VALUES (in_First, in_Last, in_position, in_salary, in_email);
 
 DBMS_OUTPUT.PUT_LINE('Insert successful.');
 
@@ -680,7 +619,7 @@ RAISE input_check;
 
 COMMIT;
 
-ENDIF;
+END IF;
 EXCEPTION
     WHEN DUP_VAL_ON_INDEX THEN
         DBMS_OUTPUT.PUT_LINE('Error: Duplicate value. Check the unique constraint.');
@@ -697,21 +636,21 @@ END;
 
 --------------------u Update u------------------------
 CREATE OR REPLACE PROCEDURE order_items_update(
-In_order_item_id IN NUMBER,
-in_order_count IN NUMBER,
-in_item_id IN NUMBER,
-in_quantity IN NUMBER,
-in_subtotal IN NUMBER (6,2)
+    In_order_item_id    IN NUMBER,
+    in_order_count      IN NUMBER,
+    in_item_id          IN NUMBER,
+    in_quantity         IN NUMBER,
+    in_subtotal         IN NUMBER
 )
 IS 
 
 BEGIN
-UPDATE	 order_items
-SET		 order_count = in_order_count,
- item_id = in_item_id, 
-quantity = in_quantity, 
-subtotal = in_subtotal
-WHERE	order_item_id = In_order_item_id
+UPDATE	order_items
+SET		order_count = in_order_count,
+        item_id = in_item_id, 
+        quantity = in_quantity, 
+        subtotal = in_subtotal
+WHERE	order_item_id = In_order_item_id;
 
 DBMS_OUTPUT.PUT_LINE('Update successful.');
 
@@ -728,24 +667,24 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE single_serving_description(
-In_single_serving_id IN NUMBER,
-in_size IN VARCHAR2(50),
-in_amount IN NUMBER(5,2),
-in_unit_size IN VARCHAR2(10),
-in_ Availability IN NUMBER (1),
-in_inventory_id IN NUMBER 
+    In_single_serving_id    IN NUMBER,
+    in_size                 IN VARCHAR2,
+    in_amount               IN NUMBER,
+    in_unit_size            IN VARCHAR2,
+    in_Availability        IN NUMBER,
+    in_inventory_id         IN NUMBER 
 )
 IS 
 
 BEGIN
 
 UPDATE 	single_serving 
-SET size = 	in_size, 
-amount = in_amount, 
-unit = in_unit, 
-Availability = in_ Availability, 
-current_inventory_id  = in_inventory_id
-WHERE	 single_serving_id = In_single_serving_id
+SET     size = 	in_size, 
+        amount = in_amount, 
+        unit = in_unit, 
+        Availability = in_Availability, 
+        current_inventory_id  = in_inventory_id
+WHERE	 single_serving_id = In_single_serving_id;
 
 DBMS_OUTPUT.PUT_LINE('Update successful.');
 
@@ -762,26 +701,27 @@ DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM);
 END;
 /
 
-CREATE OR REPLACE PROCEDURE insert_current_inventory(
-In_current_inventory_id IN NUMBER,
-in_item_name IN VARCHAR2(50),
-in_brand_nameIN NUMBER(5,2),
-in_stock_quantity IN VARCHAR2(10),
-in_unit IN NUMBER (1),
-in_category IN NUMBER,
-in_create IN TIMESTAMP
+CREATE OR REPLACE PROCEDURE update_current_inventory(
+    in_current_inventory_id IN NUMBER,
+    in_item_name            IN VARCHAR2,
+    in_brand_name           IN NUMBER,
+    in_stock_quantity       IN VARCHAR2,
+    in_unit                 IN NUMBER,
+    in_category             IN NUMBER,
+    in_create               IN TIMESTAMP
 )
 IS 
 
 BEGIN
 UPDATE 	current_inventory
-SET 		size = item_name, 
-amount = in_item_name, 
-brand_name = in_brand_name, 
-stock_quantity = in_stock_quantity, 
-unit = in_unit,
-category = in_category
-WHERE 	current_inventory_id= In_current_inventory_id
+SET 	size = item_name, 
+        amount = in_item_name, 
+        brand_name = in_brand_name, 
+        stock_quantity = in_stock_quantity, 
+        unit = in_unit,
+        category = in_category
+WHERE 	current_inventory_id= In_current_inventory_id;
+
 DBMS_OUTPUT.PUT_LINE('Insert successful.');
 
 COMMIT;
@@ -797,25 +737,26 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE insert_menu(
-In_ item_id IN NUMBER,
-in_item_name IN VARCHAR2(100),
-in_description IN VARCHAR2(50),
-in_price IN NUMBER(5,2),
-in_availability_status IN NUMBER(1),
-in_category IN VARCHAR2(50),
-in_ single_serving_id IN NUMBER
+    in_item_id              IN NUMBER,
+    in_item_name            IN VARCHAR2,
+    in_description          IN VARCHAR2,
+    in_price                IN NUMBER,
+    in_availability_status  IN NUMBER,
+    in_category             IN VARCHAR2,
+    in_single_serving_id    IN NUMBER
 )
 IS 
 BEGIN
 
 UPDATE 	menu
 SET		item_name = in_item_name, 
-Description = in_description, 
-Price = in_price,
-Category = in_category, 
-availability_status = in_availability_status, 
-single_serving_id = in_ single_serving_id
-WHERE	item_id = In_ item_id
+        Description = in_description, 
+        Price = in_price,
+        Category = in_category, 
+        availability_status = in_availability_status, 
+        single_serving_id = in_single_serving_id
+WHERE	item_id = In_item_id;
+
 DBMS_OUTPUT.PUT_LINE('Update successful.');
 COMMIT;
 
@@ -830,19 +771,19 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE Update_discount(	
-In_ discount_id IN NUBER,
-in_Discount_name IN VARCHAR2(50),
-in_Discount_rate IN NUMBER(5,2),
-in_Date_effective IN VARCHAR2(10)
+    In_discount_id      IN NUMBER,
+    in_Discount_name    IN VARCHAR2,
+    in_Discount_rate    IN NUMBER,
+    in_Date_effective   IN VARCHAR2
 )
 IS 
 
 BEGIN
 UPDATE	discount
 SET		Discount_name = in_Discount_name, 
-Discount_rate =  in_Discount_rate, 
-Date_effective = in_Date_effective
-WHERE 	discount_id = In_ discount_id
+        Discount_rate =  in_Discount_rate, 
+        Date_effective = in_Date_effective
+WHERE 	discount_id = In_discount_id;
 
 DBMS_OUTPUT.PUT_LINE('Update successful.');
 COMMIT;
@@ -857,14 +798,14 @@ DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM);
 END; 
 /
 
-CREATE OR REPLACE PROCEDURE insert_payment(
-In_ payment_id IN NUMBER,
-in_order_count IN NUMBER ,   
-in_payment_method IN VARCHAR(10), 
-in_Amount_paid IN NUMBER(10,2),  
-in_discount IN NUMBER,
-in_staff IN NUMBER, 
-in_status IN NUMBER
+CREATE OR REPLACE PROCEDURE Update_payment(
+In_payment_id       IN NUMBER,
+in_order_count      IN NUMBER ,   
+in_payment_method   IN VARCHAR, 
+in_Amount_paid      IN NUMBER,  
+in_discount         IN NUMBER,
+in_staff            IN NUMBER, 
+in_status           IN NUMBER
 )
 IS
 
@@ -872,12 +813,12 @@ BEGIN
 
 UPDATE	payments
 SET		order_count = in_order_count,   
- payment_method = in_payment_method,
- Amount_paid in_Amount_paid, 
- Discount = in_discount, 
-Status = in_status, 	
-Staff = in_staff
-WHERE 	payment_id = In_ payment_id
+        payment_method = in_payment_method,
+        Amount_paid = in_Amount_paid, 
+        Discount = in_discount, 
+        Status = in_status, 	
+        Staff = in_staff
+WHERE 	payment_id = In_payment_id;
 
 DBMS_OUTPUT.PUT_LINE('Update successful.');
 
@@ -893,17 +834,21 @@ DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM);
 END;
 /
 
-CREATE OR REPLACE PROCEDURE Attachment (
-In_attachment_id IN NUMBER,
+CREATE OR REPLACE PROCEDURE Update_Attachment (
+    In_attachment_id IN NUMBER,
     in_details_id IN NUMBER,
     in_file_path IN VARCHAR2,
-in_upload_at IN TIMESTAMP
-) IS
+    in_upload_at IN TIMESTAMP
+) 
+IS
+
+BEGIN
+
 UPDATE	Attachment
-SET 		details_id = in_details_id,
-    		file_path = in_file_path,
-upload_at = in_upload_at
-WHERE 	attachment_id = In_attachment_id
+SET 	details_id = in_details_id,
+    	file_path = in_file_path,
+        upload_at = in_upload_at
+WHERE 	attachment_id = In_attachment_id;
 
     DBMS_OUTPUT.PUT_LINE('Update successful.');
 
@@ -920,12 +865,12 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE insert_staff(
-In_staff_id IN NUMBER,
-in_First IN VARCHAR(50),   
-in_Last IN VARCHAR(50), 
-in_position IN VARCHAR(50),  
-in_salary  IN NUMBER (5,2) 
-in_email IN VARCHAR(50)
+    In_staff_id IN NUMBER,
+    in_First IN VARCHAR,   
+    in_Last IN VARCHAR, 
+    in_position IN VARCHAR,  
+    in_salary  IN NUMBER, 
+    in_email IN VARCHAR
 )
 IS
 
@@ -933,12 +878,12 @@ BEGIN
 
 UPDATE 	staff
 SET 
-First = in_First, 
-Last = in_Last, 
-Position = in_position, 
-Salary = in_salary  ,
-Email = in_email
-WHERE 	staff_id = In_staff_id
+        First = in_First, 
+        Last = in_Last, 
+        Position = in_position, 
+        Salary = in_salary  ,
+        Email = in_email
+WHERE 	staff_id = In_staff_id;
 
 DBMS_OUTPUT.PUT_LINE('Update successful.');
 
@@ -977,6 +922,7 @@ BEGIN
 
 COMMIT;
 
+EXCEPTION
 WHEN NO_DATA_FOUND THEN
       DBMS_OUTPUT.PUT_LINE('No data found for today.');
 END;
@@ -1002,7 +948,7 @@ BEGIN
         v_order_count := v_order_item.get_number('count');
         v_item_a := v_order_item.get_array('items');
         INSERT INTO order_count(order_count)
-        VALUES (v_order_count)
+        VALUES (v_order_count);
         
         FOR j IN 1..v_item_a.get_size LOOP
             v_item_o := v_item_a.get_object(j);
@@ -1065,7 +1011,7 @@ END;
 -- END;
 -- /
 
-DECLARE OR REPLACE insert_staff(
+CREATE OR REPLACE PROCEDURE insert_staff_JSON(
 v_JSON IN CLOB
 )
 IS
@@ -1093,7 +1039,7 @@ EXCEPTION
 END;
 /
 
-DECLARE OR REPLACE insert_discount(
+CREATE OR REPLACE PROCEDURE insert_discount_json(
 v_JSON IN CLOB
 )
 IS
@@ -1118,7 +1064,7 @@ EXCEPTION
 END;
 /
 
-DECLARE OR REPLACE insert_payments(
+CREATE OR REPLACE PROCEDURE insert_payment_json(
 v_JSON IN CLOB
 )
 IS
@@ -1147,7 +1093,7 @@ EXCEPTION
 END;
 /
 
-DECLARE OR REPLACE insert_menu(
+CREATE OR REPLACE PROCEDURE insert_menu_json(
 v_JSON IN CLOB
 )
 IS
@@ -1174,7 +1120,7 @@ EXCEPTION
 END;
 /
 
-DECLARE OR REPLACE insert_inventory(
+CREATE OR REPLACE PROCEDURE insert_inventory_json(
     v_JSON IN CLOB
 )
 IS
@@ -1187,18 +1133,18 @@ IS
 BEGIN
 
     FOR i IN 1 .. v_inventory_a.get_size LOOP
-        v_inventory_o := v_inventory_a.get_object(i)
+        v_inventory_o := v_inventory_a.get_object(i);
         INSERT INTO current_inventory(item_name, description, unit, category)
         VALUES (v_inventory_o.get_number('item_name'), v_inventory_o.get_number('description'),v_inventory_o.get_number('unit'), v_inventory_o.get_number('category'))
         RETURNING current_inventory_id INTO v_current_inventory_id;
-        v_inventory_details_a = v_inventory_o.get_array(i)
+        v_inventory_details_a := v_inventory_o.get_array(i);
 
         FOR j IN 1 .. v_inventory_details_a.get_size LOOP
-            v_inventory_details_o := v_inventory_details_a.get_object(j)
+            v_inventory_details_o := v_inventory_details_a.get_object(j);
             INSERT INTO current_inventory_details (stock_amount, current_inventory_id)
             VALUES (v_inventory_o.get_number('stock_amount'), v_current_inventory_id);
-        END LOOP
-    END LOOP
+        END LOOP;
+    END LOOP;
 
 COMMIT;
 
@@ -1212,9 +1158,8 @@ EXCEPTION
 END;
 /
 
-DECLARE OR REPLACE insert_per_single_serving(
-    v_json_data IN CLOB      
-    
+CREATE OR REPLACE PROCEDURE insert_persingleserving_json(
+        v_json_data IN CLOB      
     )
     
     IS
@@ -1240,7 +1185,7 @@ DECLARE OR REPLACE insert_per_single_serving(
 END;
 /
 
-DECLARE OR REPLACE insert_details (
+CREATE OR REPLACE PROCEDURE insert_details_json(
     v_json_array IN CLOB
 )
     IS
@@ -1265,7 +1210,7 @@ DECLARE OR REPLACE insert_details (
     END;
     /
 
-    DECLARE OR REPLACE insert_attachment(
+    CREATE OR REPLACE PROCEDURE insert_attachment_json(
         v_json_data IN CLOB
     )
         IS 
@@ -1290,7 +1235,7 @@ DECLARE OR REPLACE insert_details (
 
     --------------------- API Update--------------------
 
-DECLARE OR REPLACE update_details(
+CREATE OR REPLACE PROCEDURE update_details_json(
     v_json_data IN CLOB
 )
 IS 
@@ -1300,7 +1245,7 @@ IS
 BEGIN
 
     FOR i IN 1 .. v_details_a.get_size LOOP
-        v_details_o := v_details_a.get_object(i)
+        v_details_o := v_details_a.get_object(i);
         UPDATE  details
         SET     payment_id              = v_details_o.get_number('payment_id'),
                 description             = v_details_o.get_number('description'),
@@ -1321,23 +1266,23 @@ EXCEPTION
 END;
 /
 
-DECLARE OR REPLACE update_attachment(
+CREATE OR REPLACE PROCEDURE update_details_json(
     v_json_data IN CLOB
 )
 IS 
-    v_attachment_a JSON_ARRAY_T := JSON_ARRAY_T(v_json_data)
-    v_attachment_o JSON_OBJECT_T
+    v_attachment_a JSON_ARRAY_T := JSON_ARRAY_T(v_json_data);
+    v_attachment_o JSON_OBJECT_T;
 
 BEGIN
 
     FOR i IN 1 .. v_attachment_a.get_size LOOP
-        v_attachment_o := v_attachment_a.get_object(i)
+        v_attachment_o := v_attachment_a.get_object(i);
         UPDATE  Attachment
         SET     details_id      = v_attachment_o.get_number('details_id'),
                 file_path       = v_attachment_o.get_number('file_path'),
                 upload_at       = v_attachment_o.get_number('upload_at')
         WHERE   attachment_id   = v_attachment_o.get_number('details_id');
-    END LOOP
+    END LOOP;
     
 COMMIT;
 
@@ -1351,8 +1296,8 @@ EXCEPTION
 END;
 /
 
-DECLARE OR REPLACE update_per_single_serving(
-    v_json_data IN CLOB
+CREATE OR REPLACE PROCEDURE update_persingleserving_json(
+        v_json_data IN CLOB
 )
 IS 
     v_serving_a JSON_ARRAY_T := JSON_ARRAY_T(v_json_data);
@@ -1361,13 +1306,13 @@ IS
 BEGIN
 
     FOR i IN 1 .. v_serving_a.get_size LOOP
-        v_serving_o := v_serving_a.get_object(i)
+        v_serving_o := v_serving_a.get_object(i);
         UPDATE Attachment
         SET     menu_id                 = v_serving_o.get_number('menu_id'),
                 amount                  = v_serving_o.get_number('amount'),
                 current_inventory_id    = v_serving_o.get_number('current_inventory_id')
         WHERE   menu_id                 = v_attachment_o.get_number('menu_id') AND current_inventory_id = v_serving_o.get_number('current_inventory_id');
-    END LOOP
+    END LOOP;
     
 COMMIT;
 
@@ -1381,8 +1326,8 @@ COMMIT;
 END;
 /
 
-DECLARE OR REPLACE update_current_inventory(
-    v_json_data IN CLOB
+CREATE OR REPLACE PROCEDURE update_inventory_json(
+        v_json_data IN CLOB
 )
 IS 
     v_inventory_a JSON_ARRAY_T := JSON_ARRAY_T(v_json_data);
@@ -1400,17 +1345,17 @@ BEGIN
                 category                = v_inventory_o.get_number('category'),
                 create_at               = v_inventory_o.get_number('create_at')
         WHERE   current_inventory_id    = v_inventory_o.get_number('current_inventory_id');
-        v_indetails_a = v_inventory_o.get_array(i);
+        v_indetails_a := v_inventory_o.get_array(i);
 
         FOR j IN 1.. v_indetails_a.get_size LOOP
         v_indetails_o := v_indetails_a.get_object(j);
             UPDATE  current_inventory_details
-            SET     stock_amount   = v_indetails_o.get_number('stock_amount'),
+            SET     stock_amount   = v_indetails_o.get_number('stock_amount')
             WHERE  current_inventory_id = v_inventory_o.get_number('current_inventory_id');
 
-        END LOOP
+        END LOOP;
 
-    END LOOP
+    END LOOP;
     
 COMMIT;
 
@@ -1424,7 +1369,7 @@ COMMIT;
 END;
 /
 
-CREATE OR REPLACE update_menu_id(
+CREATE OR REPLACE PROCEDURE update_menu_json(
     v_json_data IN CLOB
 )
 
@@ -1440,7 +1385,7 @@ BEGIN
                 price               = v_menu_o.get_number('price'),
                 category            = v_menu_o.get_number('category'),
                 availabity_status   = v_menu_o.get_number('availability_status')        
-        WHERE   menu_id             = v_menu_o.get_number('menu_id')
+        WHERE   menu_id             = v_menu_o.get_number('menu_id');
     END LOOP
 
 COMMIT;
@@ -1455,7 +1400,7 @@ COMMIT;
 END;
 /
 
-CREATE OR REPLACE update_discount(
+CREATE OR REPLACE PROCEDURE update_discount_json(
     v_json_data IN CLOB
 )
 
@@ -1470,7 +1415,7 @@ BEGIN
         SET     discount_name       = v_discount_o.get_number('discount_name'),
                 discount_rate       = v_discount_o.get_number('discount_rate'),
                 date_effective      = v_discount_o.get_number('date_effective')
-        WHERE   discount_id         = v_discount_o.get_number('discount_id')
+        WHERE   discount_id         = v_discount_o.get_number('discount_id');
     END LOOP
 
 COMMIT;
@@ -1485,7 +1430,7 @@ COMMIT;
 END;
 /
 
-CREATE OR REPLACE update_staff(
+CREATE OR REPLACE PROCEDURE update_staff_json(
     v_json_data IN CLOB
 )
 
@@ -1499,12 +1444,12 @@ BEGIN
         UPDATE  staff
         SET     first       = v_staff_o.get_number('first'),
                 last        = v_staff_o.get_number('last'),
-                position    = v_staff_o.get_number('position')
+                position    = v_staff_o.get_number('position'),
                 salary      = v_staff_o.get_number('salary'),
                 hire_date   = v_staff_o.get_number('hire_date'),
                 email       = v_staff_o.get_number('email')
-        WHERE   staff_id    = v_staff_o.get_number('staff_id')
-    END LOOP
+        WHERE   staff_id    = v_staff_o.get_number('staff_id');
+    END LOOP;
 
 COMMIT;
 
