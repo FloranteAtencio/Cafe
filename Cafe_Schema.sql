@@ -204,11 +204,11 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE insert_current_inventory_bulk(
-    in_item_name      IN arrayData.ArrayNUMBER,
+    in_item_name      IN arrayData.ArrayVARCHAR,
     in_brand_name     IN arrayData.ArrayNUMBER,
     in_stock_quantity IN arrayData.ArrayNUMBER,
-    in_unit           IN arrayData.ArrayNUMBER,
-    in_category       IN NUMBER
+    in_unit           IN arrayData.ArrayVARCHAR,
+    in_category       IN arrayData.ArrayNUMBER
 )
 IS
     input_check EXCEPTION;
@@ -217,7 +217,7 @@ BEGIN
     -- Loop through the input arrays
     FOR i IN 1 .. in_item_name.COUNT LOOP
         -- Check if the data is valid
-        IF in_item_name(i) IS NULL OR in_stock_quantity(i) < 0 OR in_unit(i) < 1 THEN
+        IF in_item_name(i) IS NULL OR in_stock_quantity(i) < 0 OR in_unit(i) IS NULL THEN
             RAISE input_check;  -- Raise an exception if data is invalid
         ELSE
             -- Insert the data into the inventory table
@@ -247,12 +247,12 @@ END;
 
 
 CREATE OR REPLACE PROCEDURE insert_menu_bulk(
-    in_item_name                        IN ArrayVarchar,
-    in_description                      IN ArrayVarchar,
-    in_price                            IN ArrayDecimal,
-    in_availability_status              IN ArrayBoolean, 
-    in_category                         IN ArrayVarchar,
-    in_order_inventory_description_id   IN ArrayNUMBER
+    in_item_name                        IN arrayData.ArrayVARCHAR,
+    in_description                      IN arrayData.ArrayVARCHAR,
+    in_price                            IN arrayData.ArrayDECIMAL,
+    in_availability_status              IN arrayData.ArrayBOOLEAN, 
+    in_category                         IN arrayData.ArrayVARCHAT,
+    in_order_inventory_description_id   IN arrayData.ArrayNUMBER
 
 )
 IS 
@@ -286,10 +286,10 @@ END;
 
 
 CREATE OR REPLACE PROCEDURE order_items_bulks(
-    in_order_count  IN ArrayData.ArrayNumber,
-    in_item_id      IN ArrayData.ArrayNumber,
-    in_quantity     IN ArrayData.ArrayNumber,
-    in_subtotal     IN ArrayData.ArrayDecimal
+    in_order_count  IN ArrayData.ArrayNUMBER,
+    in_item_id      IN ArrayData.ArrayNUMBER,
+    in_quantity     IN ArrayData.ArrayNUMBER,
+    in_subtotal     IN ArrayData.ArrayDECIMAL
 )
 IS
 
@@ -362,11 +362,11 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE single_serving(
-in_size IN VARCHAR2,
-in_amount IN NUMBER,
-in_unit_size IN VARCHAR2,
-in_availability IN NUMBER,
-in_inventory_id IN NUMBER 
+    in_size         IN VARCHAR2,
+    in_amount       IN NUMBER,
+    in_unit_size    IN VARCHAR2,
+    in_availability IN NUMBER,
+    in_inventory_id IN NUMBER 
 )
 IS 
 DECLARE
@@ -416,7 +416,7 @@ input_check EXCEPTION;
 
 BEGIN
 
-IF LENGTH(in_item_name) < 0  OR in_stock_quantity < 0 THEN
+IF LENGTH(in_item_name)IS NULL  OR in_stock_quantity < 0 THEN
     RAISE input_check;
 ELSE 
 
@@ -835,10 +835,10 @@ END;
 /
 
 CREATE OR REPLACE PROCEDURE Update_Attachment (
-    In_attachment_id IN NUMBER,
-    in_details_id IN NUMBER,
-    in_file_path IN VARCHAR2,
-    in_upload_at IN TIMESTAMP
+    In_attachment_id    IN NUMBER,
+    in_details_id       IN NUMBER,
+    in_file_path        IN VARCHAR2,
+    in_upload_at        IN TIMESTAMP
 ) 
 IS
 
@@ -866,22 +866,21 @@ END;
 
 CREATE OR REPLACE PROCEDURE insert_staff(
     In_staff_id IN NUMBER,
-    in_First IN VARCHAR,   
-    in_Last IN VARCHAR, 
+    in_First    IN VARCHAR,   
+    in_Last     IN VARCHAR, 
     in_position IN VARCHAR,  
-    in_salary  IN NUMBER, 
-    in_email IN VARCHAR
+    in_salary   IN NUMBER, 
+    in_email    IN VARCHAR
 )
 IS
 
 BEGIN
 
 UPDATE 	staff
-SET 
-        First = in_First, 
+SET     First = in_First, 
         Last = in_Last, 
         Position = in_position, 
-        Salary = in_salary  ,
+        Salary = in_salary,
         Email = in_email
 WHERE 	staff_id = In_staff_id;
 
@@ -1020,13 +1019,13 @@ BEGIN
     -- Insert data directly using JSON_TABLE and JSON_VALUE
     INSERT INTO staff (first, last, position, salary, hire_date, email)
     SELECT 
-        JSON_VALUE(ji.value, '$.first'), 
-        JSON_VALUE(ji.value, '$.last'), 
-        JSON_VALUE(ji.value, '$.position'), 
-        JSON_VALUE(ji.value, '$.salary'), 
-        JSON_VALUE(ji.value, '$.hire_date'), 
-        JSON_VALUE(ji.value, '$.email')
-    FROM JSON_TABLE(JSON_QUERY(v_JSON, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+            JSON_VALUE(ji.value, '$.first'), 
+            JSON_VALUE(ji.value, '$.last'), 
+            JSON_VALUE(ji.value, '$.position'), 
+            JSON_VALUE(ji.value, '$.salary'), 
+            JSON_VALUE(ji.value, '$.hire_date'), 
+            JSON_VALUE(ji.value, '$.email')
+    FROM    JSON_TABLE(JSON_QUERY(v_JSON, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
 
     COMMIT;
 EXCEPTION 
@@ -1048,10 +1047,10 @@ BEGIN
     -- Insert data directly using JSON_TABLE and JSON_VALUE
     INSERT INTO discount (discount_name, discount_rate, date_effective)
     SELECT 
-        JSON_VALUE(ji.value, '$.discount_name'), 
-        JSON_VALUE(ji.value, '$.discount_rate'), 
-        JSON_VALUE(ji.value, '$.date_effective')
-    FROM JSON_TABLE(JSON_QUERY(v_JSON, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+            JSON_VALUE(ji.value, '$.discount_name'), 
+            JSON_VALUE(ji.value, '$.discount_rate'), 
+            JSON_VALUE(ji.value, '$.date_effective')
+    FROM    JSON_TABLE(JSON_QUERY(v_JSON, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
 
     COMMIT;
 EXCEPTION 
@@ -1073,14 +1072,14 @@ BEGIN
     -- Insert data directly using JSON_TABLE and JSON_VALUE
     INSERT INTO payments (order_count, payment_method, pay_amount, recieved_amount, staff_id, discount_id, status)
     SELECT 
-        JSON_VALUE(ji.value, '$.order_count'), 
-        JSON_VALUE(ji.value, '$.payment_method'), 
-        JSON_VALUE(ji.value, '$.recieved_amount'),
-        JSON_VALUE(ji.value, '$.staff_id'), 
-        JSON_VALUE(ji.value, '$.discount_id'), 
-        JSON_VALUE(ji.value, '$.status')
+            JSON_VALUE(ji.value, '$.order_count'), 
+            JSON_VALUE(ji.value, '$.payment_method'), 
+            JSON_VALUE(ji.value, '$.recieved_amount'),
+            JSON_VALUE(ji.value, '$.staff_id'), 
+            JSON_VALUE(ji.value, '$.discount_id'), 
+            JSON_VALUE(ji.value, '$.status')
         
-    FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+    FROM    JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
 
     COMMIT;
 EXCEPTION 
@@ -1102,12 +1101,12 @@ BEGIN
     -- Insert data directly using JSON_TABLE and JSON_VALUE
     INSERT INTO menu (item_name, price, category, availability_status)
     SELECT 
-        JSON_VALUE(ji.value, '$.item_name'), 
-        JSON_VALUE(ji.value, '$.price'), 
-        JSON_VALUE(ji.value, '$.category'),
-        JSON_VALUE(ji.value, '$.availability_status') 
+            JSON_VALUE(ji.value, '$.item_name'), 
+            JSON_VALUE(ji.value, '$.price'), 
+            JSON_VALUE(ji.value, '$.category'),
+            JSON_VALUE(ji.value, '$.availability_status') 
         
-    FROM JSON_TABLE(JSON_QUERY(v_JSON, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+    FROM    JSON_TABLE(JSON_QUERY(v_JSON, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
 
     COMMIT;
 EXCEPTION 
@@ -1168,10 +1167,10 @@ CREATE OR REPLACE PROCEDURE insert_persingleserving_json(
 
         INSERT INTO per_single_serving(menu_id, amount, current_inventory_id)
         SELECT
-            JSON_VALUE(ji.value, '$.menud_id'),
-            JSON_VALUE(ji.value, '$.amount'),
-            JSON_VALUE(ji.value, '$.current_inventory_id')
-        FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+                JSON_VALUE(ji.value, '$.menud_id'),
+                JSON_VALUE(ji.value, '$.amount'),
+                JSON_VALUE(ji.value, '$.current_inventory_id')
+        FROM    JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
 
     COMMIT;
 
@@ -1193,11 +1192,11 @@ CREATE OR REPLACE PROCEDURE insert_details_json(
     BEGIN
         INSERT INTO details(payment_id, description, amount_paid, DebitCredit)
         SELECT
-            JSON_VALUE(ji.value, '$.payment_id'),
-            JSON_VALUE(ji.value, '$.decription'),
-            JSON_VALUE(ji.value, '$.amount_paid'),
-            JSON_VALUE(ji.value, '$.DebitCredit')            
-        FROM JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value  CLOB PATH '$')) ji;
+                JSON_VALUE(ji.value, '$.payment_id'),
+                JSON_VALUE(ji.value, '$.decription'),
+                JSON_VALUE(ji.value, '$.amount_paid'),
+                JSON_VALUE(ji.value, '$.DebitCredit')            
+        FROM    JSON_TABLE(JSON_QUERY(v_json_data, '$'), '$[*]' COLUMNS (value  CLOB PATH '$')) ji;
     COMMIT;
 
     EXCEPTION
@@ -1218,9 +1217,9 @@ CREATE OR REPLACE PROCEDURE insert_details_json(
     BEGIN
         INSERT INTO attachment(details_id, file_path)
         SELECT
-            JSON_VALUE(ji.value, '$.details_id'),
-            JSON_VALUE(ji.value, '$.file_path')
-        FROM JSON_TABLE(JSON_QUERY(V_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
+                JSON_VALUE(ji.value, '$.details_id'),
+                JSON_VALUE(ji.value, '$.file_path')
+        FROM    JSON_TABLE(JSON_QUERY(V_json_data, '$'), '$[*]' COLUMNS (value CLOB PATH '$')) ji;
     COMMIT;
 
     EXCEPTION
