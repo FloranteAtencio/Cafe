@@ -53,6 +53,60 @@ container-registry.oracle.com/database/free:latest
 
 sudo docker exec -it LegendOfZelda bash
 
+-- Login as admin 
+-- For safer way sqlplus sys@locahost:1521 as sysdba
+sqlplus sys/p1a2s0s3word@locahost:1521 as sysdba
+
+-- PLUGGABLE DATABASE
+CREATE PLUGGABLE DATABASE Dev_Cafe admin user Links IDENTIFIED BY zelda \
+create_file_dest='/home/oracle';
+
+-- Set permision
+ALTER PLUGGABLE DATABASE Dev_Cafe OPEN;
+EXIT
+
+-- Log in to the database
+-- For safer way sqlplus sys@localhost:1521/Dev_cafe as sysdba
+sqlplus sys/p1a2s0s3word@localhost:1521/Dev_Cafe as sysdba
+
+-- Grant access to Link
+GRANT DBA to link CONTAINER = ALL
+
+-- Developer Acess
+
+CREATE ROLE dev_ROLE;
+
+GRANT CONNECT, CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE PROCEDURE,
+      CREATE SEQUENCE, CREATE TRIGGER, CREATE SYNONYM TO dev_ROLE;
+
+CREATE USER Dev_Hyrule IDENTIFIED BY dev_Password
+
+GRANT dev_ROLE TO Dev;
+
+GRANT UNLIMITED TABLESPACE TO Dev;
+
+-- Production Access after the schema is created
+
+CREATE ROLE prod_ROLE;
+
+BEGIN
+  FOR t IN (SELECT table_name FROM all_tables WHERE owner = 'Dev_cafe') LOOP
+    EXECUTE IMMEDIATE 'GRANT SELECT, INSERT, UPDATE ON ' || 'Dev_cafe' || t.table_name || ' TO prod_ROLE';
+  END LOOP;
+END;
+/
+
+CREATE USER Prod IDENTIFIED BY ProdPassword
+
+GRANT prod_ROLE TO Prod
+
+EXIT
+
+--  DBA As link
+-- safe way sqlplus Link@localhost:1521/Dev_Cafe
+sqlplus Link/zelda@localhost:1521/Dev_Cafe
+
+
 -- back up automation in shell 
 
 chmod +x /Home/Oracle/Script/full_backup.sh
