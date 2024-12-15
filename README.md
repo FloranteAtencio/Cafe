@@ -41,44 +41,36 @@ sudo apt update
 
 sudo apt install docker.io
 
--- Download oracle inside docker
+-- Create Volume for progress
+sudo docker volume create oracle_volume
 
-sudo docker run -itd --name LegendOfZelda \
--e ORACLE_PWD='p1a2s0s3word' \
--p 1521:1521 \
--v /home/oracle : /opt/oracle/oradata \
-container-registry.oracle.com/database/free:latest
+-- Download oracle inside docker this about worth 10 Gb of
+
+sudo docker run -itd --name LegendOfZelda -p 1521:1521 -e ORACLE_PWD='p1a2s0s3word' -v oracle_volume:/opt/oracle/oradata container-registry.oracle.com/database/free:latest
 
 -- Execute sql
 
 sudo docker exec -it LegendOfZelda bash
 
+-- make Directory for  Pluggable and Script
+
 -- Login as admin 
-
 -- For safer way sqlplus sys@locahost:1521 as sysdba
-
 sqlplus sys/p1a2s0s3word@locahost:1521 as sysdba
 
 -- PLUGGABLE DATABASE
-
 CREATE PLUGGABLE DATABASE Dev_Cafe admin user Links IDENTIFIED BY zelda \
-
-create_file_dest='/home/oracle';
+create_file_dest='/home/oracle/Pluggable';
 
 -- Set permision
-
 ALTER PLUGGABLE DATABASE Dev_Cafe OPEN;
-
 EXIT
 
 -- Log in to the database
-
 -- For safer way sqlplus sys@localhost:1521/Dev_cafe as sysdba
-
 sqlplus sys/p1a2s0s3word@localhost:1521/Dev_Cafe as sysdba
 
 -- Grant access to Link
-
 GRANT DBA to link CONTAINER = ALL
 
 -- Developer Acess
@@ -111,9 +103,7 @@ GRANT prod_ROLE TO Prod
 EXIT
 
 --  DBA As link
-
 -- safe way sqlplus Link@localhost:1521/Dev_Cafe
-
 sqlplus Link/zelda@localhost:1521/Dev_Cafe
 
 
