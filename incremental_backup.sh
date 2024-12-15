@@ -13,4 +13,5 @@ EOF
 
 # Remove backups older than 7 days
 find "/Home/Oracle" -name "pluggable_incremental_backup_*" -type f -mtime +7 -exec rm {} \;
+find "/Home/Oracle" -name "incremental_backup_*" -type f -mtime +7 -exec rm {} \;
 # backup shell file located in /Home/Oracle/Script/
