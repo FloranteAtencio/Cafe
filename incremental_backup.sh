@@ -6,7 +6,7 @@ rman target / <<EOF
 RUN {
   BACKUP INCREMENTAL LEVEL 1 DATABASE FORMAT '/Home/Oracle/incremental_backup_%d_%T';
   BACKUP PLUGGABLE DATABASE ALL FORMAT '/Home/Oracle/pluggable_incremental_backup_%d_%T'
-    FILE_NAME_CONVERT=('/opt/oracle/oradata/FREE', '/Home/Oracle/Pluggable');
+    FILE_NAME_CONVERT=('/opt/oracle/oradata/FREE', '/Home/Oracle/Pluggable/FREE');
   DELETE OBSOLETE;
 }
 EOF
