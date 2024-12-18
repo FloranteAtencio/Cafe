@@ -116,12 +116,11 @@ sqlplus Dev_Hyrule/dev_Password@localhost:1521/Dev_Cafe
 
 -- back up automation in shell 
 
-chmod +x /Home/Oracle/Script/full_backup.sh
+chmod +x ./full_backup.sh
 
-chmod +x /Home/Oracle/Script/incremental_backup.sh
-
+chmod +x ./incremental_backup.sh
 crontab -e
 
-0 8 1 * * /Home/Oracle/Script/full_backup.sh
+0 8 1 * * /usr/bin/docker exec -it LegendOfZelda /bin/bash -c "/Home/Oracle/Script/full_backup.sh"
 
-0 8 1 * 7 /Home/Oracle/Script/incremental_backup.sh
+0 8 1 * 7 /usr/bin/docker exec -it LegendOfZelda /bin/bash -c "/Home/Oracle/Script/incremental_backup.sh"
