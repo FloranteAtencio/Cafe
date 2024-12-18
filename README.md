@@ -46,32 +46,36 @@ sudo docker volume create oracle_volume
 
 -- Download oracle inside docker this about worth 10 Gb of
 
-sudo docker run -itd --name LegendOfZelda -p 1521:1521 -e ORACLE_PWD='p1a2s0s3word' -v oracle_volume:/opt/oracle/oradata container-registry.oracle.com/database/free:latest
+sudo docker run -itd --name LegendOfZelda -p 1521:1521 -e ORACLE_PWD='1234' -v oracle_volume:/opt/oracle/oradata container-registry.oracle.com/database/free:latest
 
 -- Execute sql
 
 sudo docker exec -it LegendOfZelda bash
 
 -- make Directory for  Pluggable and Script
+mkdir pluggable
+mkdir script
+mkdir backup
 
 -- Login as admin 
 -- For safer way sqlplus sys@locahost:1521 as sysdba
-sqlplus sys/p1a2s0s3word@locahost:1521 as sysdba
+sqlplus sys/1234@localhost:1521 as sysdba
 
 -- PLUGGABLE DATABASE
-CREATE PLUGGABLE DATABASE Dev_Cafe admin user Links IDENTIFIED BY zelda \
-create_file_dest='/home/oracle/Pluggable';
+CREATE PLUGGABLE DATABASE Dev_Cafe admin user Links IDENTIFIED BY zelda
+create_file_dest='/home/oracle/pluggable';
 
 -- Set permision
 ALTER PLUGGABLE DATABASE Dev_Cafe OPEN;
 EXIT
 
 -- Log in to the database
--- For safer way sqlplus sys@localhost:1521/Dev_cafe as sysdba
-sqlplus sys/p1a2s0s3word@localhost:1521/Dev_Cafe as sysdba
+-- For safer way sqlplus sys@localhost:1521/Dev_Cafe as sysdba
+sqlplus sys@localhost:1521/Dev_Cafe as sysdba
 
 -- Grant access to Link
-GRANT DBA to link CONTAINER = ALL
+GRANT DBA to Links
+GRANT SYSDBA to Links
 
 -- Developer Acess
 
@@ -79,11 +83,11 @@ CREATE ROLE dev_ROLE;
 
 GRANT CONNECT, CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE PROCEDURE, CREATE SEQUENCE, CREATE TRIGGER, CREATE SYNONYM TO dev_ROLE;
 
-CREATE USER Dev_Hyrule IDENTIFIED BY dev_Password
+CREATE USER Dev_Hyrule IDENTIFIED BY dev_Password;
 
-GRANT dev_ROLE TO Dev;
+GRANT dev_ROLE TO Dev_Hyrule;
 
-GRANT UNLIMITED TABLESPACE TO Dev;
+GRANT UNLIMITED TABLESPACE TO Dev_Hyrule;
 
 -- Production Access after the schema is created
 
@@ -104,8 +108,11 @@ EXIT
 
 --  DBA As link
 -- safe way sqlplus Link@localhost:1521/Dev_Cafe
-sqlplus Link/zelda@localhost:1521/Dev_Cafe
+sqlplus Links/zelda@localhost:1521/Dev_Cafe
+-- or 
+sqlplus Dev_Hyrule/dev_Password@localhost:1521/Dev_Cafe
 
+-- copy and paste the Cafe_schema.sql 
 
 -- back up automation in shell 
 
@@ -113,7 +120,7 @@ chmod +x /Home/Oracle/Script/full_backup.sh
 
 chmod +x /Home/Oracle/Script/incremental_backup.sh
 
-crobtab -e
+crontab -e
 
 0 8 1 * * /Home/Oracle/Script/full_backup.sh
 
