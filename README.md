@@ -31,35 +31,43 @@ Each PDB is a self-contained database with its own schemas and objects.
 
 Ubuntu Server 24.04.1 LTS for Database and docker for container.
 
+
 ==== Coder start here in Linux ========
 
 -- Update server
 
 sudo apt update
 
+
 -- Install docker
 
 sudo apt install docker.io
 
+
 -- Create Volume for progress
 sudo docker volume create oracle_volume
+
 
 -- Download oracle inside docker this about worth 10 Gb of
 
 sudo docker run -itd --name LegendOfZelda -p 1521:1521 -e ORACLE_PWD='1234' -v oracle_volume:/opt/oracle/oradata container-registry.oracle.com/database/free:latest
 
+
 -- Execute sql
 
 sudo docker exec -it LegendOfZelda bash
+
 
 -- make Directory for  Pluggable and Script
 mkdir pluggable
 mkdir script
 mkdir backup
 
+
 -- Login as admin 
 -- For safer way sqlplus sys@locahost:1521 as sysdba
 sqlplus sys/1234@localhost:1521 as sysdba
+
 
 -- PLUGGABLE DATABASE
 CREATE PLUGGABLE DATABASE Dev_Cafe admin user Links IDENTIFIED BY zelda
