@@ -1,4 +1,6 @@
-# Cafe
+## Disclaimer  
+This project is for **testing and learning purposes only**. It is not intended for production use, and I make no guarantees regarding its reliability, security, or performance. Use at your own risk.  
+
 Cafe Database
 Initial set up for docker and oracle 23c free database version of oracle
 
